@@ -26,6 +26,11 @@ class handler(BaseHTTPRequestHandler):
 
         result = list(stores)
 
+        # Filter: specific codes (comma-separated)
+        if 'codes' in qs:
+            wanted = set(c.strip() for c in qs['codes'][0].split(',') if c.strip())
+            result = [s for s in result if s.get('code') in wanted]
+
         # Filter: open/closed
         if 'open' in qs:
             want = qs['open'][0] == '1'
