@@ -51,6 +51,18 @@ def get_options(store_code, product_id):
                     "values": dict(zip(g.get("values", []), g.get("value_texts", []))),
                 })
 
+        # Add-ons / toppings WITH prices (Syrup, Topping, dll)
+        addons = []
+        for a in (data.get("product_addon_wording") or {}).get("addon_wordings", []):
+            addons.append({
+                "code": a["dimension_code"],
+                "name": a["dimension_text"],
+                "values": [
+                    {"id": v["value"], "label": v["value_text"], "price": v.get("addon_price") or 0}
+                    for v in a["dimension_value_wordings"]
+                ],
+            })
+
         # Combo prices: variant selection -> price (+ addons available)
         opm = data.get("option_product_map") or {}
         variants = {}
@@ -71,6 +83,7 @@ def get_options(store_code, product_id):
             "base_price": (data.get("base_product") or {}).get("price"),
             "prices": prices,
             "dimensions": dimensions,
+            "addons": addons,
             "notes": notes,
             "default_selection": data.get("default_selection_impact_sku"),
             "variants": variants,

@@ -176,8 +176,13 @@ for(const dim of d.dimensions){
 h+=`<div class="vg-r"><span class="vg-l">${dim.name}</span><div class="vg-opts">`;
 for(const v of dim.values)h+=`<button class="vg-o${v===dim.values[0]?' on':''}" data-dim="${dim.code}" data-val="${v.id}" onclick="pick(this)">${v.label}</button>`;
 h+='</div></div>';}
-h+=`<div class="vg-r"><span class="vg-l">Harga</span><div class="vg-p" id="vprice">${d.base_price?'Rp'+d.base_price.toLocaleString():'-'}</div></div></div>`;
+for(const a of (d.addons||[])){
+h+=`<div class="vg-r"><span class="vg-l">${a.name}</span><div class="vg-opts">`;
+for(const v of a.values)h+=`<button class="vg-o" data-addon="${a.code}" data-val="${v.id}" data-price="${v.price||0}" onclick="pickAdd(this)">${v.label}${v.price?` <b>+${(v.price/1000)}k</b>`:''}</button>`;
+h+='</div></div>';}
+h+=`<div class="vg-r"><span class="vg-l">Total</span><div class="vg-p" id="vprice">Rp${(d.base_price||0).toLocaleString()}</div></div></div>`;
 body.innerHTML=h;
+body.dataset.base=d.base_price||0;
 body.scrollIntoView({behavior:'smooth',block:'nearest'});
 }catch(e){body.innerHTML=''}}
 
@@ -185,6 +190,22 @@ function pick(btn){
 const dim=btn.dataset.dim;
 btn.parentElement.querySelectorAll('.vg-o').forEach(b=>b.classList.remove('on'));
 btn.classList.add('on');
+calc();
+}
+
+function pickAdd(btn){
+btn.classList.toggle('on');
+calc();
+}
+
+function calc(){
+const body=document.getElementById('vb');if(!body)return;
+let total=parseInt(body.dataset.base||0);
+document.querySelectorAll('#vb .vg-o.on').forEach(b=>{
+if(b.dataset.price)total+=parseInt(b.dataset.price);
+});
+const el=document.getElementById('vprice');
+if(el)el.textContent='Rp'+total.toLocaleString();
 }
 function cm(){document.getElementById('ov').classList.remove('on');document.getElementById('mp').classList.remove('on')}
 let t;document.getElementById('q').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(fl,200)});
