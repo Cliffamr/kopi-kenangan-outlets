@@ -88,12 +88,10 @@ class handler(BaseHTTPRequestHandler):
         qs = urllib.parse.parse_qs(self.path.split('?', 1)[1]) if '?' in self.path else {}
         parts = path.split('/')
         # Vercel rewrite may pass /api/options.py — find store/id after 'options'
-        try:
-            i = parts.index('options')
-            store_code, product_id = parts[i+1], parts[i+2]
-        except (ValueError, IndexError):
-            store_code = qs.get('store', [None])[0]
-            product_id = qs.get('id', [None])[0]
+        nums = [p for p in parts if p.isdigit()]
+        alnum = [p for p in parts if p and not p.isdigit() and p not in ('api',) and not p.endswith('.py') and p != 'options']
+        store_code = qs.get('store', [None])[0] or (alnum[0] if alnum else None)
+        product_id = qs.get('id', [None])[0] or (nums[0] if nums else None)
         if not store_code or not product_id:
             body = json.dumps({"error": "Usage: /api/options/STORE_CODE/PRODUCT_ID (product_id from menu API)"}).encode()
             self.send_response(400)
