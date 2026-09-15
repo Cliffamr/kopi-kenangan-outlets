@@ -7,9 +7,6 @@
     { "source": "/api/stream/(.+)", "destination": "/api/stream_status.py" },
     { "source": "/api/stores", "destination": "/api/stores.py" }
   ],
-  "cron": [
-    { "path": "/api/cron/refresh", "schedule": "0 */6 * * *" }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
