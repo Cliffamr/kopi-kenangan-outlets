@@ -53,6 +53,15 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty{text-align:center;padding:40px 20px;color:var(--txt2)}
 .cnt{font-size:11px;color:var(--txt2);padding:6px 16px;text-align:center}
+.vg{border-top:1px solid #24283b;padding:10px 16px 14px}
+.vg-t{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.vg-r{display:flex;align-items:center;gap:10px;margin:7px 0;flex-wrap:wrap}
+.vg-l{font-size:11px;color:var(--txt2);min-width:90px}
+.vg-opts{display:flex;gap:5px;flex-wrap:wrap}
+.vg-o{background:#1a1d2e;border:1px solid #2a2e45;color:var(--txt);font-size:11.5px;padding:5px 11px;border-radius:14px;cursor:pointer}
+.vg-o.on{background:var(--acc);border-color:var(--acc);color:#000;font-weight:600}
+.vg-p{font-size:14px;font-weight:700;color:var(--acc)}
+.mi.sel{outline:1px solid var(--acc);border-radius:6px}
 </style>
 </head>
 <body>
@@ -147,10 +156,36 @@ try{const r=await fetch(API+'/menu/'+c);const d=await r.json();
 if(d.error){document.getElementById('mc').innerHTML=`<div class="ld">${d.error}</div>`;return}
 let h=`<div class="cnt">${d.available_items}/${d.total_items} items tersedia</div>`;
 for(const g of d.groups){h+=`<div class="mg"><div class="mg-t">${g.group_name} (${g.products.filter(p=>p.available).length}/${g.products.length})</div>`;
-for(const p of g.products)h+=`<div class="mi">${p.image?`<img class="mi-img" src="${p.image}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}
+for(const p of g.products)h+=`<div class="mi"${p.id?` onclick="ov('${c}','${p.id}',this)" style="cursor:pointer"`:''}>${p.image?`<img class="mi-img" src="${p.image}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}
 <div class="mi-body"><div class="mi-n${p.available?'':' so'}">${p.name}${p.available?'':' (Habis)'}</div>
 <div class="mi-p">${p.original_price&&p.original_price!==p.price?`<span class="orig">Rp${p.original_price.toLocaleString()}</span>`:''}Rp${p.price.toLocaleString()}${p.has_promo?'<span class="promo">PROMO</span>':''}</div></div></div>`;h+='</div>'}
 document.getElementById('mc').innerHTML=h;}catch(e){document.getElementById('mc').innerHTML='<div class="ld">Gagal memuat menu</div>'}}
+
+// === Variant picker (size, temperature, sugar, dll) ===
+let VD=null;
+async function ov(code,id,el){
+if(VD&&VD.key===code+':'+id){VD.el.classList.remove('sel');VD=null;return}
+if(VD)VD.el.classList.remove('sel');
+el.classList.add('sel');VD={key:code+':'+id,el};
+const body=document.getElementById('vb')||(()=>{const b=document.createElement('div');b.id='vb';document.getElementById('mc').after(b);return b})();
+body.innerHTML='<div class="ld">Memuat varian...</div>';
+try{const r=await fetch(API+'/options/'+code+'/'+id);const d=await r.json();
+if(d.error){body.innerHTML='';return}
+let h=`<div class="vg"><div class="vg-t">Pilih varian</div>`;
+for(const dim of d.dimensions){
+h+=`<div class="vg-r"><span class="vg-l">${dim.name}</span><div class="vg-opts">`;
+for(const v of dim.values)h+=`<button class="vg-o${v===dim.values[0]?' on':''}" data-dim="${dim.code}" data-val="${v.id}" onclick="pick(this)">${v.label}</button>`;
+h+='</div></div>';}
+h+=`<div class="vg-r"><span class="vg-l">Harga</span><div class="vg-p" id="vprice">${d.base_price?'Rp'+d.base_price.toLocaleString():'-'}</div></div></div>`;
+body.innerHTML=h;
+body.scrollIntoView({behavior:'smooth',block:'nearest'});
+}catch(e){body.innerHTML=''}}
+
+function pick(btn){
+const dim=btn.dataset.dim;
+btn.parentElement.querySelectorAll('.vg-o').forEach(b=>b.classList.remove('on'));
+btn.classList.add('on');
+}
 function cm(){document.getElementById('ov').classList.remove('on');document.getElementById('mp').classList.remove('on')}
 let t;document.getElementById('q').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(fl,200)});
 document.getElementById('f').addEventListener('change',fl);
