@@ -105,7 +105,7 @@ class handler(BaseHTTPRequestHandler):
         store_code, product_id = parts[2], parts[3]
         opts = get_options(store_code, product_id)
         if not opts or opts.get("error"):
-            body = json.dumps({"error": "Options not available"}).encode()
+            body = json.dumps({"error": "Options not available", "detail": opts.get("error") if opts else None}).encode()
             self.send_response(404)
         else:
             body = json.dumps(opts, ensure_ascii=False).encode()
