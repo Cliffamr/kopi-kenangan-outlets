@@ -37,6 +37,7 @@ def get_menu(code):
                     "original_price": p.get("orig_price"),
                     "available": not p.get("is_sold_out", False),
                     "has_promo": p.get("has_promotion", False),
+                    "image": (p.get("image") or "").split("?")[0],
                 })
             groups.append({"group_name": g.get("group_name"), "products": products})
         total = sum(len(g["products"]) for g in groups)
