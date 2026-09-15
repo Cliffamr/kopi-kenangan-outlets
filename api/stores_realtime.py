@@ -61,6 +61,10 @@ class handler(BaseHTTPRequestHandler):
 
         result = []
         for s in stores:
+            # If codes specified, only include those stores
+            if codes and s["code"] not in codes:
+                continue
+
             entry = {
                 "code": s["code"],
                 "name": s.get("name"),
@@ -75,8 +79,7 @@ class handler(BaseHTTPRequestHandler):
                 "_source": "cached",
             }
 
-            if codes and s["code"] in codes:
-                # Check both sources
+            if codes:
                 kk_status = get_kk_api(s["code"])
                 jd_status = get_jasdor_status(s["code"])
 
