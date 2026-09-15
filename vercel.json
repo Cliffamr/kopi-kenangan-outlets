@@ -1,13 +1,18 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/api/stores/(.*)", "destination": "/api/store_detail.py" },
-    { "source": "/api/menu/(.*)", "destination": "/api/menu.py" },
+    { "source": "/api/stores/(.+)", "destination": "/api/store_detail.py" },
+    { "source": "/api/menu/search", "destination": "/api/menu_search.py" },
+    { "source": "/api/menu/(.+)", "destination": "/api/menu.py" },
+    { "source": "/api/stream/(.+)", "destination": "/api/stream_status.py" },
     { "source": "/api/stores", "destination": "/api/stores.py" }
+  ],
+  "cron": [
+    { "path": "/api/cron/refresh", "schedule": "0 */6 * * *" }
   ],
   "headers": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS" }

@@ -1,55 +1,51 @@
 from http.server import BaseHTTPRequestHandler
-import json, os, urllib.parse
+import json, os, time, urllib.request
 
-STORES = None
+BASE = "https://order.kopikenangan.com/web_order/api"
+HEADERS = {"Content-Type": "application/json", "language": "id", "time_zone": "7"}
+_cache = {}
 
-def load_stores():
-    global STORES
-    if STORES is None:
-        path = os.path.join(os.path.dirname(__file__), '..', 'stores.json')
+def get_store_live(code):
+    now = time.time()
+    if code in _cache and now - _cache[code]['time'] < 300:
+        return _cache[code]['data']
+    try:
+        req = urllib.request.Request(f"{BASE}/store/get_store",
+            data=json.dumps({"store_code": code}).encode(), headers=HEADERS)
+        r = urllib.request.urlopen(req, timeout=10)
+        d = json.loads(r.read())
+        if d.get("error_code") == 0:
+            _cache[code] = {'data': d['data'], 'time': now}
+            return d['data']
+    except Exception:
+        pass
+    # Fallback to cached stores.json
+    path = os.path.join(os.path.dirname(__file__), '..', 'stores.json')
+    if os.path.exists(path):
         with open(path) as f:
-            STORES = json.load(f)
-    return STORES
+            stores = json.load(f)
+        store = next((s for s in stores if s['code'] == code), None)
+        if store:
+            return store
+    return None
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # Extract store code from path: /api/stores/STORE_CODE
         code = self.path.split('/api/stores/')[-1].split('?')[0]
         if not code:
-            self.send_error(400); return
+            self.send_response(400); self.end_headers(); return
 
-        # Try local data first
-        stores = load_stores()
-        store = next((s for s in stores if s['code'] == code), None)
-
-        # If not found, try live API
+        store = get_store_live(code)
         if not store:
-            try:
-                import urllib.request
-                r = urllib.request.urlopen(urllib.request.Request(
-                    'https://order.kopikenangan.com/web_order/api/store/get_store',
-                    data=json.dumps({"store_code": code}).encode(),
-                    headers={"Content-Type": "application/json", "language": "id", "time_zone": "7"}
-                ))
-                d = json.loads(r.read())
-                if d.get("error_code") == 0:
-                    store = d["data"]
-            except Exception:
-                pass
-
-        if not store:
+            body = json.dumps({"error": "Store not found"}).encode()
             self.send_response(404)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "Store not found"}).encode())
-            return
+        else:
+            body = json.dumps(store, ensure_ascii=False).encode()
+            self.send_response(200)
 
-        body = json.dumps(store, ensure_ascii=False).encode()
-        self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Cache-Control', 's-maxage=60')
+        self.send_header('Cache-Control', 'public, s-maxage=60, max-age=30')
         self.end_headers()
         self.wfile.write(body)
 
