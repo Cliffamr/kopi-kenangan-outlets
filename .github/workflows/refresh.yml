@@ -1,7 +1,7 @@
 name: Refresh Stores
 on:
   schedule:
-    - cron: '0 * * * *'  # Every hour
+    - cron: '*/10 * * * *'  # Every 10 minutes
   workflow_dispatch:
 
 jobs:

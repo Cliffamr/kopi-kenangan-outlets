@@ -24,7 +24,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 .card:hover{border-color:var(--g2);box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-1px)}
 .card-h{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px 6px}
 .card-n{font-weight:600;font-size:14px;line-height:1.3}.card-c{font-size:11px;color:var(--txt2);margin-top:1px}
-.badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;transition:background .3s,color .3s}
+.badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;transition:all .3s}
 .bg{background:#dcfce7;color:#166534}.bc{background:#fee2e2;color:#991b1b}
 .card-i{padding:4px 14px 10px;font-size:12px;color:var(--txt2);line-height:1.6}
 .card-i .hrs{color:var(--g1);font-weight:600}
@@ -53,7 +53,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty{text-align:center;padding:40px 20px;color:var(--txt2)}
 .cnt{font-size:11px;color:var(--txt2);padding:6px 16px;text-align:center}
-.rt-badge{font-size:9px;color:var(--g2);margin-left:4px;opacity:.7}
 </style>
 </head>
 <body>
@@ -78,69 +77,63 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 <div class="mp-c" id="mc"><div class="ld">Memuat menu...</div></div>
 </div>
 <script>
-let S=[],total=0,userLat=null,userLon=null,visibleCodes=new Set(),checking=false;
+let ALL=[],SHOW=[],totalAll=0,rtDone=new Set();
 const API=window.location.origin+'/api';
-function hav(a,b,c,d){const R=6371,dLat=(c-a)*Math.PI/180,dLon=(d-b)*Math.PI/180,x=Math.sin(dLat/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
-function dist(s){if(!userLat||!userLon||!s.latitude||!s.longitude)return null;return hav(userLat,userLon,parseFloat(s.latitude),parseFloat(s.longitude))}
-function fmtDist(km){return km<1?`${Math.round(km*1000)}m`:`${km.toFixed(1)} km`}
-function getLoc(){if(!navigator.geolocation)return;document.getElementById('locBtn').textContent='⏳...';navigator.geolocation.getCurrentPosition(p=>{userLat=p.coords.latitude;userLon=p.coords.longitude;document.getElementById('locBtn').textContent='📍 Lokasi saya';fl()},()=>document.getElementById('locBtn').textContent='📍 Gagal')}
-
-// Intersection Observer: detect visible cards
-const observer=new IntersectionObserver(entries=>{
-entries.forEach(e=>{
-if(e.isIntersecting){
-const code=e.target.dataset.code;
-if(code)visibleCodes.add(code);
-}});
-// Check real-time for all visible codes
-checkVisibleRT();
+const obs=new IntersectionObserver(entries=>{
+const codes=[];
+entries.forEach(e=>{if(e.isIntersecting){const c=e.target.dataset.code;if(c&&!rtDone.has(c)){codes.push(c);rtDone.add(c);}}});
+if(codes.length)fetchRT(codes);
 },{rootMargin:'200px'});
 
-async function ls(){
-try{const r=await fetch(API+'/stores');const d=await r.json();S=d.stores;total=d.total||S.length;rs(S)}
-catch(e){document.getElementById('list').innerHTML='<div class="empty">Gagal memuat</div>'}}
+function hav(a,b,c,d){const R=6371,r1=a*Math.PI/180,r2=c*Math.PI/180,dr=(c-a)*Math.PI/180,dd=(d-b)*Math.PI/180,x=Math.sin(dr/2)**2+Math.cos(r1)*Math.cos(r2)*Math.sin(dd/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 
-async function checkVisibleRT(){
-if(checking||!visibleCodes.size)return;
-checking=true;
-const codes=[...visibleCodes].slice(0,30);
-try{
-const r=await fetch(API+'/stores_realtime?codes='+codes.join(','));
-const d=await r.json();
-const rtMap={};
-d.stores.forEach(s=>{if(s._realtime)rtMap[s.code]=s.is_open});
-S.forEach(s=>{
-if(s.code in rtMap){
-const old=s.is_open;s.is_open=rtMap[s.code];
-if(old!==s.is_open){
-const badge=document.querySelector(`[data-code="${s.code}"] .badge`);
-if(badge){badge.className='badge '+(s.is_open?'bg':'bc');badge.textContent=s.is_open?'🟢 BUKA':'🔴 TUTUP';}
-}}});
-updateStats();
-}catch(e){}
-checking=false;
-}
+function dist(s){if(!s.latitude||!s.longitude)return null;try{return hav(parseFloat(s.latitude),parseFloat(s.longitude),-6.2,106.8)}catch{return null}}
 
-function updateStats(){
-document.getElementById('tot').textContent=total;
-const op=S.filter(s=>s.is_open).length;
+function getLoc(){if(!navigator.geolocation)return;document.getElementById('locBtn').textContent='⏳...';navigator.geolocation.getCurrentPosition(p=>{
+ALL.forEach(s=>{if(s.latitude&&s.longitude)s._d=hav(parseFloat(s.latitude),parseFloat(s.longitude),p.coords.latitude,p.coords.longitude)});
+ALL.sort((a,b)=>(a._d||999)-(b._d||999));
+show();document.getElementById('locBtn').textContent='📍 Terdekat';
+},()=>document.getElementById('locBtn').textContent='📍 Gagal')}
+
+async function load(){
+try{const r=await fetch(API+'/stores');const d=await r.json();ALL=d.stores;totalAll=d.total||ALL.length;show();}catch(e){document.getElementById('list').innerHTML='<div class="empty">Gagal memuat</div>'}}
+
+function show(list){
+const a=list||ALL;SHOW=a;
+const op=a.filter(s=>s.is_open).length;
+document.getElementById('tot').textContent=totalAll;
 document.getElementById('opn').textContent=op;
-document.getElementById('cls').textContent=total-op;
-}
-function rs(a){
-const el=document.getElementById('list');observer.disconnect();visibleCodes.clear();
+document.getElementById('cls').textContent=a.length-op;
+const el=document.getElementById('list');
+obs.disconnect();
 if(!a.length){el.innerHTML='<div class="empty">🔍 Tidak ada outlet</div>';return}
-el.innerHTML=a.map(s=>{const d=dist(s);
-return`<div class="card" data-code="${s.code}" onclick="om('${s.code}','${(s.name||'').replace(/'/g,"\\'")}')">
+el.innerHTML=a.map(s=>`<div class="card" data-code="${s.code}" onclick="om('${s.code}','${(s.name||'').replace(/'/g,"\\'")}')">
 <div class="card-h"><div style="flex:1"><div class="card-n">${s.name||'?'}</div><div class="card-c">${s.code}</div></div>
-<span class="badge ${s.is_open?'bg':'bc'}">${s.is_open?'🟢 BUKA':'🔴 TUTUP'}</span></div>
+<span class="badge ${s.is_open?'bg':'bc'}" id="b-${s.code}">${s.is_open?'🟢 BUKA':'🔴 TUTUP'}</span></div>
 <div class="card-i"><div class="hrs">⏰ ${s.open||'?'} - ${s.close||'?'}</div>
-<div>📍 ${s.address||''}</div>${d?`<div class="dist">🗺️ ${fmtDist(d)}</div>`:''}</div></div>`}).join('');
-// Observe all cards
-el.querySelectorAll('.card').forEach(c=>observer.observe(c));
-updateStats();
+<div>📍 ${s.address||''}</div></div></div>`).join('');
+el.querySelectorAll('.card').forEach(c=>obs.observe(c));
 }
-function fl(){const q=document.getElementById('q').value.toLowerCase();const f=document.getElementById('f').value;let r=S;if(q)r=r.filter(s=>(s.name+s.code+s.address||'').toLowerCase().includes(q));if(f==='1')r=r.filter(s=>s.is_open);if(f==='0')r=r.filter(s=>!s.is_open);rs(r)}
+
+function fl(){const q=document.getElementById('q').value.toLowerCase();const f=document.getElementById('f').value;let r=ALL;if(q)r=r.filter(s=>(s.name+s.code+s.address||'').toLowerCase().includes(q));if(f==='1')r=r.filter(s=>s.is_open);if(f==='0')r=r.filter(s=>!s.is_open);show(r)}
+
+async function fetchRT(codes){
+try{const r=await fetch(API+'/stores_realtime?codes='+codes.join(','));const d=await r.json();
+d.stores.forEach(s=>{
+if(!s._realtime)return;
+const idx=ALL.findIndex(x=>x.code===s.code);
+if(idx>=0){
+const old=ALL[idx].is_open;ALL[idx].is_open=s.is_open;
+if(old!==s.is_open){
+const b=document.getElementById('b-'+s.code);
+if(b){b.className='badge '+(s.is_open?'bg':'bc');b.textContent=s.is_open?'🟢 BUKA':'🔴 TUTUP';}
+// Update counts
+const op=ALL.filter(x=>x.is_open).length;
+document.getElementById('opn').textContent=op;
+document.getElementById('cls').textContent=totalAll-op;
+}}});}catch(e){}
+}
+
 async function om(c,n){
 document.getElementById('mt').textContent=n;document.getElementById('mc').innerHTML='<div class="ld">Memuat menu...</div>';
 document.getElementById('ov').classList.add('on');document.getElementById('mp').classList.add('on');
@@ -151,12 +144,11 @@ for(const g of d.groups){h+=`<div class="mg"><div class="mg-t">${g.group_name} (
 for(const p of g.products)h+=`<div class="mi">${p.image?`<img class="mi-img" src="${p.image}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}
 <div class="mi-body"><div class="mi-n${p.available?'':' so'}">${p.name}${p.available?'':' (Habis)'}</div>
 <div class="mi-p">${p.original_price&&p.original_price!==p.price?`<span class="orig">Rp${p.original_price.toLocaleString()}</span>`:''}Rp${p.price.toLocaleString()}${p.has_promo?'<span class="promo">PROMO</span>':''}</div></div></div>`;h+='</div>'}
-document.getElementById('mc').innerHTML=h;
-}catch(e){document.getElementById('mc').innerHTML='<div class="ld">Gagal memuat menu</div>'}}
+document.getElementById('mc').innerHTML=h;}catch(e){document.getElementById('mc').innerHTML='<div class="ld">Gagal memuat menu</div>'}}
 function cm(){document.getElementById('ov').classList.remove('on');document.getElementById('mp').classList.remove('on')}
 let t;document.getElementById('q').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(fl,200)});
 document.getElementById('f').addEventListener('change',fl);
-ls();
+load();
 </script>
 </body>
 </html>
