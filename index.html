@@ -24,7 +24,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 .card:hover{border-color:var(--g2);box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-1px)}
 .card-h{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px 6px}
 .card-n{font-weight:600;font-size:14px;line-height:1.3}.card-c{font-size:11px;color:var(--txt2);margin-top:1px}
-.badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;transition:all .3s}
 .bg{background:#dcfce7;color:#166534}.bc{background:#fee2e2;color:#991b1b}
 .card-i{padding:4px 14px 10px;font-size:12px;color:var(--txt2);line-height:1.6}
 .card-i .hrs{color:var(--g1);font-weight:600}
@@ -53,6 +53,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty{text-align:center;padding:40px 20px;color:var(--txt2)}
 .cnt{font-size:11px;color:var(--txt2);padding:6px 16px;text-align:center}
+.polling{font-size:10px;color:var(--g2);text-align:center;padding:4px;display:flex;align-items:center;justify-content:center;gap:4px}
+.polling::before{content:'';width:8px;height:8px;border:2px solid var(--g2);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
 </style>
 </head>
 <body>
@@ -70,6 +72,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 <input type="text" id="q" placeholder="🔍 Cari outlet..." autocomplete="off">
 <select id="f"><option value="">Semua</option><option value="1">🟢 Buka</option><option value="0">🔴 Tutup</option></select>
 </div>
+<div class="polling" id="polling">Memeriksa status real-time...</div>
 <div class="ctn" id="list"><div class="ld">Memuat outlets...</div></div>
 <div class="ov" id="ov" onclick="cm()"></div>
 <div class="mp" id="mp">
@@ -77,37 +80,76 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 <div class="mp-c" id="mc"><div class="ld">Memuat menu...</div></div>
 </div>
 <script>
-let S=[],userLat=null,userLon=null;
+let S=[],userLat=null,userLon=null,polling=false;
 const API=window.location.origin+'/api';
 function hav(a,b,c,d){const R=6371,dLat=(c-a)*Math.PI/180,dLon=(d-b)*Math.PI/180,x=Math.sin(dLat/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 function dist(s){if(!userLat||!userLon||!s.latitude||!s.longitude)return null;return hav(userLat,userLon,parseFloat(s.latitude),parseFloat(s.longitude))}
 function fmtDist(km){return km<1?`${Math.round(km*1000)}m`:`${km.toFixed(1)} km`}
-function getLoc(){if(!navigator.geolocation){alert('Geolocation tidak didukung');return}document.getElementById('locBtn').textContent='⏳...';navigator.geolocation.getCurrentPosition(p=>{userLat=p.coords.latitude;userLon=p.coords.longitude;document.getElementById('locBtn').textContent=`📍 Lokasi saya`;fl()},()=>{document.getElementById('locBtn').textContent='📍 Gagal';setTimeout(()=>document.getElementById('locBtn').textContent='📍 Lokasi saya',2000)})}
+function getLoc(){if(!navigator.geolocation)return;document.getElementById('locBtn').textContent='⏳...';navigator.geolocation.getCurrentPosition(p=>{userLat=p.coords.latitude;userLon=p.coords.longitude;document.getElementById('locBtn').textContent='📍 Lokasi saya';fl()},()=>{document.getElementById('locBtn').textContent='📍 Gagal'})}
 async function ls(){
 try{
-let url=API+'/stores';
-if(userLat&&userLon)url+=`?lat=${userLat}&lon=${userLon}`;
-const r=await fetch(url);const d=await r.json();
+const r=await fetch(API+'/stores');const d=await r.json();
 S=d.stores;
-// Fetch real-time status for first 20 visible stores
-const codes=S.slice(0,20).map(s=>s.code).join(',');
-if(codes){
-const rt=await fetch(API+'/stores_realtime?codes='+codes);
-const rd=await rt.json();
-const rtMap={};rd.stores.forEach(s=>{if(s._realtime)rtMap[s.code]=s.is_open});
-S.forEach(s=>{if(s.code in rtMap)s.is_open=rtMap[s.code]});
-}
 document.getElementById('tot').textContent=S.length;
-document.getElementById('opn').textContent=S.filter(s=>s.is_open).length;
-document.getElementById('cls').textContent=S.filter(s=>!s.is_open).length;
 rs(S);
+// Start real-time polling
+pollRT();
 }catch(e){document.getElementById('list').innerHTML='<div class="empty">Gagal memuat data</div>'}}
-function rs(a){const el=document.getElementById('list');if(!a.length){el.innerHTML='<div class="empty">🔍 Tidak ada outlet</div>';return}
-el.innerHTML=a.map(s=>{const d=dist(s);return`<div class="card" onclick="om('${s.code}','${(s.name||'').replace(/'/g,"\\'")}')">
+
+async function pollRT(){
+if(polling)return;polling=true;
+const el=document.getElementById('polling');
+// Get visible store codes (first 50)
+const visible=S.slice(0,50).map(s=>s.code);
+if(!visible.length){polling=false;return}
+
+el.style.display='flex';
+// Batch in chunks of 10
+for(let i=0;i<visible.length;i+=10){
+const chunk=visible.slice(i,i+10);
+try{
+const r=await fetch(API+'/stores_realtime?codes='+chunk.join(','));
+const d=await r.json();
+// Update S with real-time status
+const rtMap={};
+d.stores.forEach(s=>{if(s._realtime)rtMap[s.code]=s.is_open});
+S.forEach(s=>{
+if(s.code in rtMap){
+const was=s.is_open;
+s.is_open=rtMap[s.code];
+// Update badge in DOM if changed
+if(was!==s.is_open){
+const card=document.querySelector(`[data-code="${s.code}"] .badge`);
+if(card){
+card.className='badge '+(s.is_open?'bg':'bc');
+card.textContent=s.is_open?'🟢 BUKA':'🔴 TUTUP';
+}}}});
+updateStats();
+}catch(e){}
+}
+el.style.display='none';
+polling=false;
+// Re-poll every 60s
+setTimeout(pollRT,60000);
+}
+
+function updateStats(){
+const op=S.filter(s=>s.is_open).length;
+document.getElementById('opn').textContent=op;
+document.getElementById('cls').textContent=S.length-op;
+}
+function rs(a){
+const el=document.getElementById('list');
+if(!a.length){el.innerHTML='<div class="empty">🔍 Tidak ada outlet</div>';return}
+el.innerHTML=a.map(s=>{
+const d=dist(s);
+return`<div class="card" data-code="${s.code}" onclick="om('${s.code}','${(s.name||'').replace(/'/g,"\\'")}')">
 <div class="card-h"><div style="flex:1"><div class="card-n">${s.name||'?'}</div><div class="card-c">${s.code}</div></div>
 <span class="badge ${s.is_open?'bg':'bc'}">${s.is_open?'🟢 BUKA':'🔴 TUTUP'}</span></div>
 <div class="card-i"><div class="hrs">⏰ ${s.open||'?'} - ${s.close||'?'}</div>
-<div>📍 ${s.address||''}</div>${d?`<div class="dist">🗺️ ${fmtDist(d)}</div>`:''}</div></div>`}).join('')}
+<div>📍 ${s.address||''}</div>${d?`<div class="dist">🗺️ ${fmtDist(d)}</div>`:''}</div></div>`}).join('');
+updateStats();
+}
 function fl(){const q=document.getElementById('q').value.toLowerCase();const f=document.getElementById('f').value;let r=S;if(q)r=r.filter(s=>(s.name+s.code+s.address||'').toLowerCase().includes(q));if(f==='1')r=r.filter(s=>s.is_open);if(f==='0')r=r.filter(s=>!s.is_open);rs(r)}
 async function om(c,n){
 document.getElementById('mt').textContent=n;
@@ -122,7 +164,7 @@ for(const g of d.groups){
 h+=`<div class="mg"><div class="mg-t">${g.group_name} (${g.products.filter(p=>p.available).length}/${g.products.length})</div>`;
 for(const p of g.products)
 h+=`<div class="mi">
-${p.image?`<img class="mi-img" src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'">`:''}
+${p.image?`<img class="mi-img" src="${p.image}" alt="" loading="lazy" onerror="this.style.display='none'">`:''}
 <div class="mi-body"><div class="mi-n${p.available?'':' so'}">${p.name}${p.available?'':' (Habis)'}</div>
 <div class="mi-p">${p.original_price&&p.original_price!==p.price?`<span class="orig">Rp${p.original_price.toLocaleString()}</span>`:''}Rp${p.price.toLocaleString()}${p.has_promo?'<span class="promo">PROMO</span>':''}</div></div></div>`;
 h+='</div>'}
@@ -131,7 +173,7 @@ document.getElementById('mc').innerHTML=h;
 function cm(){document.getElementById('ov').classList.remove('on');document.getElementById('mp').classList.remove('on')}
 let t;document.getElementById('q').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(fl,200)});
 document.getElementById('f').addEventListener('change',fl);
-ls();setInterval(ls,60000);
+ls();
 </script>
 </body>
 </html>
