@@ -32,6 +32,7 @@ def get_menu(code):
             products = []
             for p in g.get("menu_products", []):
                 products.append({
+                    "id": p.get("id"),
                     "name": p.get("name"),
                     "price": p.get("price"),
                     "original_price": p.get("orig_price"),

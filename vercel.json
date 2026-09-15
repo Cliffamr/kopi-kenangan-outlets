@@ -3,6 +3,7 @@
   "rewrites": [
     { "source": "/api/stores/(.+)", "destination": "/api/store_detail.py" },
     { "source": "/api/menu/search", "destination": "/api/menu_search.py" },
+    { "source": "/api/options/(.+)", "destination": "/api/options.py" },
     { "source": "/api/menu/(.+)", "destination": "/api/menu.py" },
     { "source": "/api/stores_realtime", "destination": "/api/stores_realtime.py" },
     { "source": "/api/stores", "destination": "/api/stores.py" }
