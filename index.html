@@ -162,7 +162,7 @@ for(const p of g.products)h+=`<div class="mi"${p.id?` onclick="ov('${c}','${p.id
 document.getElementById('mc').innerHTML=h;}catch(e){document.getElementById('mc').innerHTML='<div class="ld">Gagal memuat menu</div>'}}
 
 // === Variant picker (size, temperature, sugar, dll) ===
-let VD=null;
+let VD=null,VOPTS=null;
 async function ov(code,id,el){
 if(VD&&VD.key===code+':'+id){VD.el.classList.remove('sel');VD=null;return}
 if(VD)VD.el.classList.remove('sel');
@@ -171,6 +171,7 @@ const body=document.getElementById('vb')||(()=>{const b=document.createElement('
 body.innerHTML='<div class="ld">Memuat varian...</div>';
 try{const r=await fetch(API+'/options/'+code+'/'+id);const d=await r.json();
 if(d.error){body.innerHTML='';return}
+VOPTS=d;
 let h=`<div class="vg"><div class="vg-t">Pilih varian</div>`;
 for(const dim of d.dimensions){
 h+=`<div class="vg-r"><span class="vg-l">${dim.name}</span><div class="vg-opts">`;
@@ -180,14 +181,13 @@ for(const a of (d.addons||[])){
 h+=`<div class="vg-r"><span class="vg-l">${a.name}</span><div class="vg-opts">`;
 for(const v of a.values)h+=`<button class="vg-o" data-addon="${a.code}" data-val="${v.id}" data-price="${v.price||0}" onclick="pickAdd(this)">${v.label}${v.price?` <b>+${(v.price/1000)}k</b>`:''}</button>`;
 h+='</div></div>';}
-h+=`<div class="vg-r"><span class="vg-l">Total</span><div class="vg-p" id="vprice">Rp${(d.base_price||0).toLocaleString()}</div></div></div>`;
+h+=`<div class="vg-r"><span class="vg-l">Total</span><div class="vg-p" id="vprice"></div></div></div>`;
 body.innerHTML=h;
-body.dataset.base=d.base_price||0;
+calc();
 body.scrollIntoView({behavior:'smooth',block:'nearest'});
 }catch(e){body.innerHTML=''}}
 
 function pick(btn){
-const dim=btn.dataset.dim;
 btn.parentElement.querySelectorAll('.vg-o').forEach(b=>b.classList.remove('on'));
 btn.classList.add('on');
 calc();
@@ -199,11 +199,12 @@ calc();
 }
 
 function calc(){
-const body=document.getElementById('vb');if(!body)return;
-let total=parseInt(body.dataset.base||0);
-document.querySelectorAll('#vb .vg-o.on').forEach(b=>{
-if(b.dataset.price)total+=parseInt(b.dataset.price);
-});
+if(!VOPTS)return;
+const sel=[...document.querySelectorAll('#vb .vg-o.on')];
+// Combo key: dim-val sorted by dim code, ':'-joined with trailing ':'
+const key=sel.filter(b=>b.dataset.dim).map(b=>b.dataset.dim+'-'+b.dataset.val).sort((a,b)=>a.split('-')[0]-b.split('-')[0]).join(':')+':';
+let total=(VOPTS.variants&&VOPTS.variants[key]&&VOPTS.variants[key].price)||VOPTS.base_price||0;
+sel.forEach(b=>{if(b.dataset.price)total+=parseInt(b.dataset.price)});
 const el=document.getElementById('vprice');
 if(el)el.textContent='Rp'+total.toLocaleString();
 }
