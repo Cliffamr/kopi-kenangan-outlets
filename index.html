@@ -78,7 +78,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 <div class="mp-c" id="mc"><div class="ld">Memuat menu...</div></div>
 </div>
 <script>
-let S=[],userLat=null,userLon=null,visibleCodes=new Set(),checking=false;
+let S=[],total=0,userLat=null,userLon=null,visibleCodes=new Set(),checking=false;
 const API=window.location.origin+'/api';
 function hav(a,b,c,d){const R=6371,dLat=(c-a)*Math.PI/180,dLon=(d-b)*Math.PI/180,x=Math.sin(dLat/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 function dist(s){if(!userLat||!userLon||!s.latitude||!s.longitude)return null;return hav(userLat,userLon,parseFloat(s.latitude),parseFloat(s.longitude))}
@@ -97,7 +97,7 @@ checkVisibleRT();
 },{rootMargin:'200px'});
 
 async function ls(){
-try{const r=await fetch(API+'/stores');const d=await r.json();S=d.stores;rs(S)}
+try{const r=await fetch(API+'/stores');const d=await r.json();S=d.stores;total=d.total||S.length;rs(S)}
 catch(e){document.getElementById('list').innerHTML='<div class="empty">Gagal memuat</div>'}}
 
 async function checkVisibleRT(){
@@ -122,9 +122,10 @@ checking=false;
 }
 
 function updateStats(){
+document.getElementById('tot').textContent=total;
 const op=S.filter(s=>s.is_open).length;
 document.getElementById('opn').textContent=op;
-document.getElementById('cls').textContent=S.length-op;
+document.getElementById('cls').textContent=total-op;
 }
 function rs(a){
 const el=document.getElementById('list');observer.disconnect();visibleCodes.clear();
