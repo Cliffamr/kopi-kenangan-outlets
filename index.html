@@ -79,11 +79,17 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 <script>
 let ALL=[],SHOW=[],totalAll=0,rtDone=new Set();
 const API=window.location.origin+'/api';
+let pending=[];
 const obs=new IntersectionObserver(entries=>{
-const codes=[];
-entries.forEach(e=>{if(e.isIntersecting){const c=e.target.dataset.code;if(c&&!rtDone.has(c)){codes.push(c);rtDone.add(c);}}});
-if(codes.length)fetchRT(codes);
+entries.forEach(e=>{if(e.isIntersecting){const c=e.target.dataset.code;if(c&&!rtDone.has(c)){rtDone.add(c);pending.push(c);}}});
+if(pending.length)flushRT();
 },{rootMargin:'200px'});
+
+function flushRT(){
+if(!pending.length)return;
+const batch=pending.splice(0,5);
+fetchRT(batch).then(()=>{if(pending.length)setTimeout(flushRT,300);});
+}
 
 function hav(a,b,c,d){const R=6371,r1=a*Math.PI/180,r2=c*Math.PI/180,dr=(c-a)*Math.PI/180,dd=(d-b)*Math.PI/180,x=Math.sin(dr/2)**2+Math.cos(r1)*Math.cos(r2)*Math.sin(dd/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 
