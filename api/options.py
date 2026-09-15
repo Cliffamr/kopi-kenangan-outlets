@@ -1,5 +1,5 @@
 from http.server import BaseHTTPRequestHandler
-import json, time, urllib.request, os
+import json, time, urllib.request, urllib.parse, os
 
 BASE = "https://order.kopikenangan.com/web_order/api"
 HEADERS = {"Content-Type": "application/json", "language": "id", "time_zone": "7"}
@@ -84,8 +84,17 @@ def get_options(store_code, product_id):
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         # /api/options/STORE_CODE/PRODUCT_ID
-        parts = self.path.split('?')[0].rstrip('/').split('/')
-        if len(parts) < 4:
+        path = self.path.split('?')[0].rstrip('/')
+        qs = urllib.parse.parse_qs(self.path.split('?', 1)[1]) if '?' in self.path else {}
+        parts = path.split('/')
+        # Vercel rewrite may pass /api/options.py — find store/id after 'options'
+        try:
+            i = parts.index('options')
+            store_code, product_id = parts[i+1], parts[i+2]
+        except (ValueError, IndexError):
+            store_code = qs.get('store', [None])[0]
+            product_id = qs.get('id', [None])[0]
+        if not store_code or not product_id:
             body = json.dumps({"error": "Usage: /api/options/STORE_CODE/PRODUCT_ID (product_id from menu API)"}).encode()
             self.send_response(400)
             self.send_header('Content-Type', 'application/json')
