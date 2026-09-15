@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kopi Kenangan - Outlet & Menu</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#333}
+.hdr{background:linear-gradient(135deg,#1a5632,#2d8a4e);color:#fff;padding:16px;text-align:center;position:sticky;top:0;z-index:100}
+.hdr h1{font-size:22px}.hdr .sub{opacity:.8;font-size:13px;margin-top:2px}
+.stats{display:flex;justify-content:center;gap:20px;margin-top:10px}
+.stat-num{font-size:18px;font-weight:700}.stat-lbl{font-size:11px;opacity:.8}
+.search{padding:10px 16px;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:70px;z-index:99;display:flex;gap:8px}
+.search input{flex:1;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:0}
+.search input:focus{border-color:#2d8a4e}
+.search select{padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff}
+.ctn{max-width:800px;margin:0 auto;padding:8px}
+.card{background:#fff;border-radius:12px;margin-bottom:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);cursor:pointer;transition:transform .15s}
+.card:hover{transform:translateY(-2px);box-shadow:0 3px 8px rgba(0,0,0,.15)}
+.card-hdr{display:flex;justify-content:space-between;align-items:center;padding:12px 14px}
+.card-name{font-weight:600;font-size:15px}.card-code{font-size:11px;color:#888;margin-top:1px}
+.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.bg{background:#dcfce7;color:#166534}.bc{background:#fee2e2;color:#991b1b}
+.card-info{padding:0 14px 10px;font-size:12px;color:#666;line-height:1.5}
+.card-info .hrs{color:#1a5632;font-weight:500}
+.brands{display:flex;gap:4px;margin-top:4px}
+.brands span{background:#f0f0f0;padding:2px 7px;border-radius:10px;font-size:10px}
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200}
+.ov.on{display:block}
+.mp{position:fixed;bottom:0;left:0;right:0;max-height:80vh;background:#fff;border-radius:16px 16px 0 0;overflow-y:auto;z-index:201;transform:translateY(100%);transition:transform .3s}
+.mp.on{transform:translateY(0)}
+.mp-hdr{padding:14px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff}
+.mp-hdr h2{font-size:17px}.mp-x{background:0;border:0;font-size:22px;cursor:pointer;color:#666;padding:4px}
+.mg{padding:8px 18px}.mg-t{font-size:13px;font-weight:600;color:#1a5632;padding:4px 0;border-bottom:1px solid #eee;margin-bottom:4px}
+.mi{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f5f5f5}
+.mi:last-child{border:0}.mi-n{font-size:13px;font-weight:500}
+.mi-n.so{color:#ccc;text-decoration:line-through}
+.mi-p{font-size:12px;color:#1a5632;font-weight:600}
+.mi-p .orig{text-decoration:line-through;color:#999;font-weight:400;font-size:11px;margin-right:4px}
+.promo{font-size:10px;padding:2px 5px;border-radius:4px;background:#fef3c7;color:#92400e;margin-left:4px}
+.ld{text-align:center;padding:30px;color:#888;font-size:14px}
+.empty{text-align:center;padding:40px;color:#888}
+</style>
+</head>
+<body>
+<div class="hdr">
+<h1>☕ Kopi Kenangan</h1>
+<div class="sub">Status Outlet & Menu Real-Time</div>
+<div class="stats">
+<div><div class="stat-num" id="tot">-</div><div class="stat-lbl">Total</div></div>
+<div><div class="stat-num" id="opn" style="color:#86efac">-</div><div class="stat-lbl">🟢 Buka</div></div>
+<div><div class="stat-num" id="cls" style="color:#fca5a5">-</div><div class="stat-lbl">🔴 Tutup</div></div>
+</div></div>
+<div class="search">
+<input type="text" id="q" placeholder="🔍 Cari outlet...">
+<select id="f"><option value="">Semua</option><option value="1">🟢 Buka</option><option value="0">🔴 Tutup</option></select>
+</div>
+<div class="ctn" id="list"><div class="ld">Loading outlets...</div></div>
+<div class="ov" id="ov" onclick="cm()"></div>
+<div class="mp" id="mp">
+<div class="mp-hdr"><h2 id="mt">Menu</h2><button class="mp-x" onclick="cm()">✕</button></div>
+<div id="mc"><div class="ld">Loading menu...</div></div>
+</div>
+<script>
+let S=[];
+const API=window.location.origin+'/api';
+async function ls(){
+try{
+const r=await fetch(API+'/stores');
+const d=await r.json();
+S=d.stores;
+document.getElementById('tot').textContent=d.total;
+document.getElementById('opn').textContent=d.open;
+document.getElementById('cls').textContent=d.closed;
+rs(S);
+}catch(e){document.getElementById('list').innerHTML='<div class="empty">Gagal memuat data</div>'}}
+function rs(a){
+const el=document.getElementById('list');
+if(!a.length){el.innerHTML='<div class="empty">Tidak ada outlet</div>';return}
+el.innerHTML=a.map(s=>{
+const b=(s.brand_and_image||[]).map(x=>`<span>${x.brand_name}</span>`).join('');
+return`<div class="card" onclick="om('${s.code}','${(s.name||'').replace(/'/g,"\\\\'")}')">
+<div class="card-hdr"><div><div class="card-name">${s.name||'?'}</div><div class="card-code">${s.code}</div></div>
+<span class="badge ${s.is_open?'bg':'bc'}">${s.is_open?'🟢 BUKA':'🔴 TUTUP'}</span></div>
+<div class="card-info"><div class="hrs">⏰ ${s.open||'?'} - ${s.close||'?'}</div>
+<div>📍 ${s.address||''}</div>${b?`<div class="brands">${b}</div>`:''}</div></div>`}).join('')}
+function fl(){
+const q=document.getElementById('q').value.toLowerCase();
+const f=document.getElementById('f').value;
+let r=S;
+if(q)r=r.filter(s=>(s.name+s.code+s.address||'').toLowerCase().includes(q));
+if(f==='1')r=r.filter(s=>s.is_open);
+if(f==='0')r=r.filter(s=>!s.is_open);
+rs(r)}
+async function om(c,n){
+document.getElementById('mt').textContent=n;
+document.getElementById('mc').innerHTML='<div class="ld">Loading menu...</div>';
+document.getElementById('ov').classList.add('on');
+document.getElementById('mp').classList.add('on');
+try{
+const r=await fetch(API+'/menu/'+c);
+const d=await r.json();
+if(d.error){document.getElementById('mc').innerHTML=`<div class="ld">${d.error}</div>`;return}
+let h=`<div style="padding:8px 18px;color:#666;font-size:12px">${d.available_items}/${d.total_items} items tersedia</div>`;
+for(const g of d.groups){
+h+=`<div class="mg"><div class="mg-t">${g.group_name} (${g.products.filter(p=>p.available).length}/${g.products.length})</div>`;
+for(const p of g.products)
+h+=`<div class="mi"><div class="mi-n${p.available?'':' so'}">${p.name}${p.available?'':' (Habis)'}</div>
+<div class="mi-p">${p.original_price&&p.original_price!==p.price?`<span class="orig">Rp${p.original_price}</span>`:''}Rp${p.price}${p.has_promo?'<span class="promo">PROMO</span>':''}</div></div>`;
+h+='</div>'}
+document.getElementById('mc').innerHTML=h;
+}catch(e){document.getElementById('mc').innerHTML='<div class="ld">Gagal memuat menu</div>'}}
+function cm(){document.getElementById('ov').classList.remove('on');document.getElementById('mp').classList.remove('on')}
+document.getElementById('q').addEventListener('input',fl);
+document.getElementById('f').addEventListener('change',fl);
+ls();setInterval(ls,60000);
+</script>
+</body>
+</html>
