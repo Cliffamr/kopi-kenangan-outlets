@@ -116,7 +116,7 @@ if(!a.length){el.innerHTML='<div class="empty">🔍 Tidak ada outlet</div>';retu
 el.innerHTML=a.map(s=>`<div class="card" data-code="${s.code}" onclick="om('${s.code}','${(s.name||'').replace(/'/g,"\\'")}')">
 <div class="card-h"><div style="flex:1"><div class="card-n">${s.name||'?'}</div><div class="card-c">${s.code}</div></div>
 <span class="badge ${s.is_open?'bg':'bc'}" id="b-${s.code}">${s.is_open?'🟢 BUKA':'🔴 TUTUP'}</span></div>
-<div class="card-i"><div class="hrs">⏰ ${s.open||'?'} - ${s.close||'?'}</div>
+<div class="card-i"><div class="hrs">⏰ ${s.open&&s.close?`${s.open} - ${s.close}`:'Jam tidak tersedia'}</div>
 <div>📍 ${s.address||''}</div></div></div>`).join('');
 el.querySelectorAll('.card').forEach(c=>obs.observe(c));
 }
