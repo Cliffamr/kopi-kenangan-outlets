@@ -78,8 +78,8 @@ def get_options(store_code, product_id):
         }
         _opts_cache[key] = {"data": result, "t": now}
         return result
-    except Exception:
-        return None
+    except Exception as e:
+        return {"error": str(e)}
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -104,7 +104,7 @@ class handler(BaseHTTPRequestHandler):
             return
         store_code, product_id = parts[2], parts[3]
         opts = get_options(store_code, product_id)
-        if not opts:
+        if not opts or opts.get("error"):
             body = json.dumps({"error": "Options not available"}).encode()
             self.send_response(404)
         else:
