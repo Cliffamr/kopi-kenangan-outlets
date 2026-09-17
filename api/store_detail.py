@@ -5,18 +5,30 @@ BASE = "https://order.kopikenangan.com/web_order/api"
 HEADERS = {"Content-Type": "application/json", "language": "id", "time_zone": "7"}
 _cache = {}
 
+def canonicalize_store(store):
+    if not isinstance(store, dict) or not isinstance(store.get("name"), str):
+        return None
+    name = store["name"].strip()
+    if not name:
+        return None
+    canonical = dict(store)
+    canonical["name"] = name
+    return canonical
+
 def get_store_live(code):
     now = time.time()
     if code in _cache and now - _cache[code]['time'] < 300:
-        return _cache[code]['data']
+        return canonicalize_store(_cache[code]['data'])
     try:
         req = urllib.request.Request(f"{BASE}/store/get_store",
             data=json.dumps({"store_code": code}).encode(), headers=HEADERS)
         r = urllib.request.urlopen(req, timeout=10)
         d = json.loads(r.read())
         if d.get("error_code") == 0:
-            _cache[code] = {'data': d['data'], 'time': now}
-            return d['data']
+            store = canonicalize_store(d['data'])
+            if store is not None:
+                _cache[code] = {'data': store, 'time': now}
+                return store
     except Exception:
         pass
     # Fallback to cached stores.json
@@ -24,9 +36,9 @@ def get_store_live(code):
     if os.path.exists(path):
         with open(path) as f:
             stores = json.load(f)
-        store = next((s for s in stores if s['code'] == code), None)
+        store = next((s for s in stores if isinstance(s, dict) and s.get('code') == code), None)
         if store:
-            return store
+            return canonicalize_store(store)
     return None
 
 class handler(BaseHTTPRequestHandler):
