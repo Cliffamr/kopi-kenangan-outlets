@@ -127,6 +127,15 @@ class FetchValidationTests(unittest.TestCase):
 
 
 class ConvertTests(unittest.TestCase):
+    def test_convert_trims_boundary_whitespace_from_name(self):
+        rows = refresh_stores.convert([outlet("A", name="  Outlet A  ")])
+        self.assertEqual(rows[0]["name"], "Outlet A")
+        self.assertTrue(rows[0]["name"])
+
+    def test_convert_rejects_whitespace_only_name(self):
+        with self.assertRaises(refresh_stores.RefreshError):
+            refresh_stores.convert([outlet("A", name=" \t\n")])
+
     def test_convert_retains_one_canonical_output_per_input(self):
         rows = refresh_stores.convert([outlet(" A "), outlet("B")])
         self.assertEqual(len(rows), 2)

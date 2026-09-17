@@ -151,7 +151,7 @@ def convert(outlets):
 
         stores.append({
             "code": code.strip(),
-            "name": name,
+            "name": name.strip(),
             "address": address,
             "latitude": _coordinate(outlet, "latitude"),
             "longitude": _coordinate(outlet, "longitude"),
