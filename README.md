@@ -60,10 +60,18 @@ curl "https://kopi-kenangan-outlets.vercel.app/api/stores_realtime?codes=KK.KDS.
 
 ### `GET /api/menu/:code`
 
-Menu outlet — nama, harga, promo, ketersediaan, **gambar produk**. Cache 5 menit.
+Menu outlet — nama, harga, promo, ketersediaan, **gambar produk**, dan `sku` kanonik. Cache 5 menit.
 
 ```bash
 curl https://kopi-kenangan-outlets.vercel.app/api/menu/DPK.APTKROXY
+```
+
+### `GET /api/options/:code/:product_id`
+
+Kontrak opsi produk read-only. Setiap produk menu memiliki `sku`; setiap varian memiliki `sku` dan sorted unique `addon_skus`; setiap nilai add-on memiliki `sku`. Grup add-on juga mengembalikan boolean `mandatory` dan `only_one`. Respons ditolak jika identitas SKU kosong, ambigu, duplikat, atau kompatibilitas mengarah ke add-on yang tidak dipublikasikan.
+
+```bash
+curl https://kopi-kenangan-outlets.vercel.app/api/options/DPK.APTKROXY/9645
 ```
 
 ### `GET /api/menu/search?q=...`
@@ -87,6 +95,7 @@ curl "https://kopi-kenangan-outlets.vercel.app/api/menu/search?q=kopi+kenangan+m
 │   ├── store_detail.py     # GET /api/stores/:code — real-time
 │   ├── stores_realtime.py  # GET /api/stores_realtime — dual-verify
 │   ├── menu.py             # GET /api/menu/:code — menu + images
+│   ├── options.py          # GET /api/options/:code/:product_id — option contract
 │   └── menu_search.py      # GET /api/menu/search
 ├── stores.json             # 1337 stores (auto-refresh 10 menit)
 ├── refresh_stores.py       # Fetcher dari jasdorkopi.id
