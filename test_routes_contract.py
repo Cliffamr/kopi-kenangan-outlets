@@ -76,12 +76,12 @@ class RouteCompatibilityTests(unittest.TestCase):
                 self.assertIn(("Access-Control-Allow-Origin", "*"), headers)
                 self.assertIn(("Access-Control-Allow-Methods", "GET,OPTIONS"), headers)
 
-    def test_vercel_rewrites_forward_captured_paths_explicitly(self):
+    def test_vercel_rewrites_public_paths_to_function_roots_without_suffix_forwarding(self):
         with open("vercel.json", encoding="utf-8") as handle:
             config = json.load(handle)
         rewrites = {item["source"]: item["destination"] for item in config["rewrites"]}
-        self.assertEqual(rewrites["/api/menu/(.+)"], "/api/menu.py/$1")
-        self.assertEqual(rewrites["/api/options/(.+)"], "/api/options.py/$1")
+        self.assertEqual(rewrites["/api/menu/(.+)"], "/api/menu.py")
+        self.assertEqual(rewrites["/api/options/(.+)"], "/api/options.py")
 
 
 if __name__ == "__main__":
